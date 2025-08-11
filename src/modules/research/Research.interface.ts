@@ -1,4 +1,4 @@
-import { Document } from "mongoose";
+import { Document, Types } from "mongoose";
 
 export interface ISource {
   url: string;
@@ -30,6 +30,7 @@ export interface ISearchQuery {
 }
 
 export interface IResearchResult extends Document {
+  chat: Types.ObjectId;
   query: string;
   result: string;
   sources: ISource[];

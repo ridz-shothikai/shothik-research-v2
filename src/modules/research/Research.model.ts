@@ -95,6 +95,10 @@ const imagesSchema = new Schema<IImage>(
 
 const ResearchResultSchema = new Schema<IResearchResult>(
   {
+    chat:{
+        type: Schema.Types.ObjectId,
+        required: true,
+    },
     query: {
       type: String,
       required: true,

@@ -25,6 +25,7 @@ class ResearchService {
       const graphResult = await graph.invoke(initialState, runnableConfig);
 
       const researchResult = new ResearchResultModel({
+        chat: result?.chat,
         query: result?.query,
         result: graphResult.running_summary,
         sources: graphResult.sources_gathered,

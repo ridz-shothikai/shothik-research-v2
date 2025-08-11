@@ -1,6 +1,7 @@
 import Joi from "joi";
 
 export const researchSchema = Joi.object({
+  chat: Joi.string().required(),
   query: Joi.string().required(),
   config: Joi.object({
     query_generator_model: Joi.string().optional().default("gemini-2.5-pro"),
