@@ -1,7 +1,7 @@
+import Configuration from "../../config/configuration.js";
 import { IResearchResult } from "./Research.interface.js";
 import ResearchResultModel from "./Research.model.js";
 import { researchSchema } from "./Research.validation.js";
-import Configuration from "./tools/configuration.js";
 import { graph } from "./tools/graph.js";
 import { OverallState } from "./tools/state.js";
 

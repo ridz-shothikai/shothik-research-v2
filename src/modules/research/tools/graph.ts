@@ -2,8 +2,8 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { StructuredOutputParser } from "langchain/output_parsers";
 import { z } from "zod";
 
-import { ImageSearchService } from "../services/imageSearch.js";
-import Configuration from "./configuration.js";
+import Configuration from "../../../config/configuration.js";
+import { ImageSearchService } from "./imageSearch.js";
 import {
   answerInstructions,
   getCurrentDate,
