@@ -1,13 +1,15 @@
 import express from "express";
+import ChatRoutes from "../modules/chat/Chat.routes.js";
 import ResearchRoutes from "../modules/research/Research.routes.js";
+import UserRoutes from "../modules/users/Users.routes.js";
 
 const router: express.Router = express.Router();
 
-// // Auth
-// router.use("/auth", UserRoutes);
+// Auth
+router.use("/auth", UserRoutes);
 
-// // Chat/File
-// router.use("/chat", ChatRoutes);
+// Chat
+router.use("/chat", ChatRoutes);
 
 // Research
 router.use("/research", ResearchRoutes);
