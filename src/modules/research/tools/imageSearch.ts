@@ -1,17 +1,6 @@
 import "dotenv/config";
 import { google } from "googleapis";
-
-interface ImageResult {
-  url: string;
-  title: string;
-  source: string;
-  alt_text: string;
-  thumbnail_url?: string;
-  width?: number;
-  height?: number;
-  context_url?: string;
-  relevance_score: number;
-}
+import { ImageResult } from "../Research.interface.js";
 
 class ImageSearchService {
   private customSearch: any;

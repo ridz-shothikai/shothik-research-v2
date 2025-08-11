@@ -1,19 +1,4 @@
-interface Message {
-  role: string;
-  content: string;
-}
-
-interface ImageResult {
-  url: string;
-  title: string;
-  source: string;
-  alt_text: string;
-  thumbnail_url?: string;
-  width?: number;
-  height?: number;
-  context_url?: string;
-  relevance_score: number;
-}
+import { ImageResult, Message } from "../Research.interface.js";
 
 class OverallState {
   public messages: Message[];

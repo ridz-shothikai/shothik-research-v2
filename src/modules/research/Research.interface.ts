@@ -19,7 +19,11 @@ export interface IImage {
   relevance_score?: number;
 }
 
-// TypeScript interface for search query objects
+export interface Message {
+  role: string;
+  content: string;
+}
+
 export interface ISearchQuery {
   query: string;
   rationale: string;
@@ -41,4 +45,16 @@ export interface IResearchResult extends Document {
   };
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface ImageResult {
+  url: string;
+  title: string;
+  source: string;
+  alt_text: string;
+  thumbnail_url?: string;
+  width?: number;
+  height?: number;
+  context_url?: string;
+  relevance_score: number;
 }
