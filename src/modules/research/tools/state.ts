@@ -11,6 +11,8 @@ class OverallState {
   public research_loop_count: number;
   public reasoning_model: string;
   public running_summary?: string;
+  public similar_research_context?: string;
+  public existing_research_history?: string;
 
   constructor() {
     this.messages = [];

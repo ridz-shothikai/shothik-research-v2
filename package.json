@@ -44,7 +44,9 @@
     "morgan": "^1.10.0",
     "redis": "^5.8.0",
     "uuid": "^9.0.1",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "@langchain/pinecone": "^0.1.1",
+    "@pinecone-database/pinecone": "^2.2.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

@@ -50,9 +50,26 @@ async function generateQuery(state: any, config: any) {
 
   const userQuestion = state.messages[state.messages.length - 1]?.content || "";
 
+  let contextualPrompt = userQuestion;
+
+  if (state.existing_research_history || state.similar_research_context) {
+    contextualPrompt += "\n\nIMPORTANT CONTEXT:\n";
+
+    if (state.existing_research_history) {
+      contextualPrompt += `Previous research in this conversation: ${state.existing_research_history}\n`;
+    }
+
+    if (state.similar_research_context) {
+      contextualPrompt += `Similar research from other conversations: ${state.similar_research_context}\n`;
+    }
+
+    contextualPrompt +=
+      "\nPlease use this context to focus your search queries and avoid duplicating previous research. Build upon existing knowledge where relevant.";
+  }
+
   const prompt =
     queryWriterInstructions(
-      userQuestion,
+      contextualPrompt,
       getCurrentDate(),
       configuration.number_of_initial_queries
     ) +
