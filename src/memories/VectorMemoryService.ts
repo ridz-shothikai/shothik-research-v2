@@ -10,11 +10,12 @@ import { ResearchMemory, SimilarResearch } from "./memory.interface.js";
 dotenv.config();
 export class VectorMemoryService {
   private static instance: VectorMemoryService;
+  private isInitialized = false;
   private vectorStore: PineconeStore | null = null;
   private pinecone: PineconeClient;
-  private embeddings: GoogleGenerativeAIEmbeddings;
   private keywordExtractor: AIKeywordExtractor;
-  private isInitialized = false;
+  private keywordCache: Map<string, string[]> = new Map();
+  private embeddings: GoogleGenerativeAIEmbeddings;
 
   private constructor() {
     this.embeddings = new GoogleGenerativeAIEmbeddings({
@@ -151,29 +152,48 @@ export class VectorMemoryService {
       for (const [doc, score] of uniqueResults) {
         const isCurrentChat = doc.metadata.chatId === chatId;
         const isResearchMemory = doc.metadata.type === "research_memory";
-        const hasGoodScore = score > 0.3;
-        const hasKeywordMatch = await this.hasKeywordOverlap(
+        const isFromDifferentChat = !isCurrentChat;
+        const isRecent = this.isRecentEnough(doc.metadata.timestamp);
+        if (!isResearchMemory || !isFromDifferentChat || !isRecent) {
+          logger.info(
+            `🔍 Skipping result: "${doc.metadata.query}" (basic criteria failed)`
+          );
+          continue;
+        }
+
+        const hasContextualRelevance = this.isContextuallyRelevant(
           query,
-          doc.metadata.query
+          doc.metadata.query,
+          score as number
         );
+        if (!hasContextualRelevance) {
+          logger.info(
+            `🔍 Skipping result: "${doc.metadata.query}" (contextual relevance failed)`
+          );
+          continue;
+        }
+        const hasExcellentScore = score > 0.6;
+        const hasGoodScore = score > 0.45;
+        const hasKeywordMatch = hasGoodScore
+          ? await this.hasKeywordOverlap(query, doc.metadata.query)
+          : false;
 
         logger.info(`🔍 Evaluating result: "${doc.metadata.query}"`);
         logger.info(
           `   - Chat ID: ${doc.metadata.chatId} (current: ${chatId}, same: ${isCurrentChat})`
         );
-        logger.info(`   - Score: ${score.toFixed(3)} (good: ${hasGoodScore})`);
+        logger.info(
+          `   - Score: ${score.toFixed(
+            3
+          )} (excellent: ${hasExcellentScore}, good: ${hasGoodScore})`
+        );
         logger.info(`   - Keyword match: ${hasKeywordMatch}`);
         logger.info(
           `   - Type: ${doc.metadata.type} (is research: ${isResearchMemory})`
         );
-        const isFromDifferentChat = !isCurrentChat;
-        const isRecent = this.isRecentEnough(doc.metadata.timestamp);
 
         const shouldInclude =
-          isResearchMemory &&
-          isFromDifferentChat &&
-          isRecent &&
-          (hasGoodScore || hasKeywordMatch);
+          hasExcellentScore || (hasGoodScore && hasKeywordMatch);
 
         logger.info(`   - Should include: ${shouldInclude}`);
 
@@ -264,30 +284,44 @@ export class VectorMemoryService {
     }
   }
 
+  private async getCachedKeywords(query: string): Promise<string[]> {
+    const cacheKey = query.toLowerCase().trim();
+
+    if (this.keywordCache.has(cacheKey)) {
+      logger.info(`🎯 Using cached keywords for: "${query}"`);
+      return this.keywordCache.get(cacheKey)!;
+    }
+
+    logger.info(`🤖 AI extracting keywords from: "${query}"`);
+    const keywords = await this.keywordExtractor.extractKeywordsFlat(query);
+    this.keywordCache.set(cacheKey, keywords);
+    return keywords;
+  }
+
   private async hasKeywordOverlap(
     query1: string,
     query2: string
   ): Promise<boolean> {
     try {
       const [keywords1, keywords2] = await Promise.all([
-        this.keywordExtractor.extractKeywordsFlat(query1),
-        this.keywordExtractor.extractKeywordsFlat(query2),
+        this.getCachedKeywords(query1),
+        this.getCachedKeywords(query2),
       ]);
 
       const terms1 = new Set(keywords1.map((term) => term.toLowerCase()));
       const terms2 = new Set(keywords2.map((term) => term.toLowerCase()));
       const intersection = new Set([...terms1].filter((x) => terms2.has(x)));
       const overlap = intersection.size / Math.min(terms1.size, terms2.size);
+
       const partialMatches = [...terms1].some((term1) =>
         [...terms2].some(
           (term2) =>
-            term1.includes(term2) ||
-            term2.includes(term1) ||
-            this.areSemanticallyRelated(term1, term2)
+            (term1.length > 3 && term2.includes(term1)) ||
+            (term2.length > 3 && term1.includes(term2))
         )
       );
 
-      const hasOverlap = overlap > 0.15 || partialMatches;
+      const hasOverlap = overlap > 0.25 || (overlap > 0.15 && partialMatches);
 
       logger.info(`🔗 Keyword overlap: ${query1} <-> ${query2}`);
       logger.info(`   Keywords1: ${keywords1.join(", ")}`);
@@ -323,26 +357,52 @@ export class VectorMemoryService {
     return intersection.size > 0;
   }
 
-  private areSemanticallyRelated(term1: string, term2: string): boolean {
-    const semanticGroups = [
-      ["iphone", "apple", "ios", "ipad", "macbook"],
-      ["samsung", "galaxy", "android", "note"],
-      ["google", "pixel", "android", "chrome"],
-      ["microsoft", "windows", "surface", "xbox"],
-      ["oneplus", "android", "oxygen"],
-      ["xiaomi", "android", "miui"],
-      ["huawei", "android", "emui"],
-      ["tesla", "electric", "ev", "autopilot"],
-      ["nvidia", "gpu", "graphics", "rtx"],
-      ["amd", "cpu", "processor", "ryzen"],
-      ["intel", "cpu", "processor", "core"],
-    ];
+  private isContextuallyRelevant(
+    query1: string,
+    query2: string,
+    similarityScore: number
+  ): boolean {
+    if (similarityScore > 0.7) {
+      return true;
+    }
+    const query1Lower = query1.toLowerCase();
+    const query2Lower = query2.toLowerCase();
+    const isQuery1Corporate =
+      query1Lower.includes("about") ||
+      query1Lower.includes("company") ||
+      query1Lower.includes("corporate") ||
+      query1Lower.includes("business");
+    const isQuery2ProductComparison =
+      query2Lower.includes("compare") ||
+      query2Lower.includes("vs") ||
+      query2Lower.includes("versus") ||
+      query2Lower.includes("pro max") ||
+      query2Lower.includes("iphone 1") ||
+      query2Lower.includes("model");
+    if (isQuery1Corporate && isQuery2ProductComparison) {
+      logger.info(
+        `   - Contextual relevance: false (corporate vs product comparison mismatch)`
+      );
+      return false;
+    }
+    const isQuery1General =
+      !query1Lower.match(/\d+/) &&
+      !query1Lower.includes("pro") &&
+      !query1Lower.includes("max");
+    const isQuery2SpecificProduct =
+      query2Lower.match(/\d+/) ||
+      query2Lower.includes("pro") ||
+      query2Lower.includes("max");
 
-    return semanticGroups.some(
-      (group) =>
-        group.includes(term1.toLowerCase()) &&
-        group.includes(term2.toLowerCase())
-    );
+    if (isQuery1General && isQuery2SpecificProduct && similarityScore < 0.5) {
+      logger.info(
+        `   - Contextual relevance: false (general vs specific product mismatch)`
+      );
+      return false;
+    }
+
+    logger.info(`   - Contextual relevance: true`);
+    return true;
   }
 
   private isRecentEnough(timestamp: string | Date): boolean {

@@ -1,6 +1,9 @@
 import Configuration from "../../config/configuration.js";
 import { VectorMemoryService } from "../../memories/VectorMemoryService.js";
-import { ResearchMemory, SimilarResearch } from "../../memories/memory.interface.js";
+import {
+  ResearchMemory,
+  SimilarResearch,
+} from "../../memories/memory.interface.js";
 import { sourcesToStringArray } from "../../memories/utils.js";
 import { logger } from "../../utils/logger.js";
 import { IResearchResult } from "./Research.interface.js";
@@ -12,7 +15,7 @@ import { OverallState } from "./tools/state.js";
 class ResearchService {
   static async CreateWithStreaming(
     body: Partial<IResearchResult>,
-    streamCallback: (step: string, data: any, conversation: string) => void
+    streamCallback: (step: string, data: any, research: string) => void
   ): Promise<IResearchResult> {
     try {
       const result = await researchSchema.validateAsync(body);

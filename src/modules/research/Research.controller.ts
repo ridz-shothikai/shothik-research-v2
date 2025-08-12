@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { default as createHttpError } from "http-errors";
 import { JoiError } from "../../helpers/error.js";
+import Event from "../events/Events.model.js";
 import ResearchService from "./Research.service.js";
 
 export const CreateResearch = async (
@@ -18,19 +19,25 @@ export const CreateResearch = async (
     const streamCallback = async (
       step: string,
       data: any,
-      conversation: string
+      research: string
     ) => {
       const streamData = {
-        conversation,
         step,
         data,
         timestamp: new Date().toISOString(),
       };
-
       res.write(JSON.stringify(streamData) + "\n");
       if (res.flush) {
         res.flush();
       }
+      Event.create({
+        research: research,
+        step,
+        message: data?.message,
+        timestamp: new Date().toISOString(),
+      }).catch((err) => {
+        console.error("Failed to save event:", err);
+      });
     };
 
     const finalData = await ResearchService.CreateWithStreaming(
