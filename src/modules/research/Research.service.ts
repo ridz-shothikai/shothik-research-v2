@@ -225,6 +225,17 @@ class ResearchService {
       return [];
     }
   }
+
+  static async storeResearchMemory(researchMemory: ResearchMemory): Promise<void> {
+    try {
+      const vectorMemory = VectorMemoryService.getInstance();
+      await vectorMemory.storeResearchMemory(researchMemory);
+      logger.info(`💾 Stored research memory for chat: ${researchMemory.chatId}`);
+    } catch (error) {
+      logger.error("Failed to store research memory:", error);
+      throw error;
+    }
+  }
 }
 
 export default ResearchService;

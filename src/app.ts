@@ -14,6 +14,7 @@ import "./database/init_mongodb.js";
 import routes from "./routes/routes.js";
 import { CustomError } from "./types/index.js";
 import { logger } from "./utils/logger.js";
+import { initializeQueues, shutdownQueues } from "./queues/index.js";
 
 dotenv.config();
 
@@ -77,13 +78,29 @@ process.on("unhandledRejection", (err: Error) => {
   process.exit(1);
 });
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`🚀 DeepResearch Node.js Backend running on port ${PORT}`);
+  
+  // Initialize Bull MQ queues and workers
+  try {
+    await initializeQueues();
+    console.log("✅ Bull MQ queues and workers initialized successfully");
+  } catch (error) {
+    console.error("❌ Failed to initialize Bull MQ queues:", error);
+    logger.error("Queue initialization failed", error);
+  }
 });
 
 process.on("SIGINT", () => {
   logger.info("SIGINT Received");
-  server.close(() => {
+  server.close(async () => {
+    try {
+      await shutdownQueues();
+      console.log("✅ Bull MQ queues shut down gracefully");
+    } catch (error) {
+      console.error("❌ Error shutting down queues:", error);
+    }
+    
     mongoose.connection.close().then(() => {
       process.exit(0);
     });
@@ -93,7 +110,14 @@ process.on("SIGINT", () => {
 
 process.on("SIGTERM", () => {
   logger.info("SIGTERM Received");
-  server.close(() => {
+  server.close(async () => {
+    try {
+      await shutdownQueues();
+      console.log("✅ Bull MQ queues shut down gracefully");
+    } catch (error) {
+      console.error("❌ Error shutting down queues:", error);
+    }
+    
     mongoose.connection.close().then(() => {
       process.exit(0);
     });
