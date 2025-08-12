@@ -1,12 +1,15 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Response } from "express";
 import { default as createHttpError } from "http-errors";
 import { JoiError } from "../../helpers/error.js";
+import { toObjectId } from "../../helpers/toObjectId.js";
+import { AuthRequest } from "../../middleware/shared/jwt_helper.js";
 import QueueService from "../../queues/QueueService.js";
 import { logger } from "../../utils/logger.js";
 import Event from "../events/Events.model.js";
+import ResearchResultSchema from "./Research.model.js";
 
 export const CreateResearchWithQueue = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -152,7 +155,7 @@ export const CreateResearchWithQueue = async (
 };
 
 export const GetResearchJobStatus = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -171,7 +174,7 @@ export const GetResearchJobStatus = async (
 };
 
 export const CancelResearchJob = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -198,7 +201,7 @@ export const CancelResearchJob = async (
 };
 
 export const RetryResearchJob = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -225,13 +228,63 @@ export const RetryResearchJob = async (
 };
 
 export const GetQueueStats = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
     const stats = await QueueService.getQueueStats();
     res.json(stats);
+  } catch (e: any) {
+    next(e);
+  }
+};
+
+export const GetChatResearches = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { chat } = req.params;
+    const data = await ResearchResultSchema.aggregate([
+      {
+        $match: {
+          $and: [{ chat: toObjectId(chat) }],
+        },
+      },
+      {
+        $lookup: {
+          from: "events",
+          let: { researchId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$research", "$$researchId"],
+                },
+              },
+            },
+          ],
+          as: "events",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          chat: 1,
+          query: 1,
+          result: 1,
+          sources: 1,
+          images: 1,
+          research_loops: 1,
+          search_queries: 1,
+          config: 1,
+          events: 1,
+        },
+      },
+    ]);
+    res.json(data);
   } catch (e: any) {
     next(e);
   }

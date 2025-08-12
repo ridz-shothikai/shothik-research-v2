@@ -1,11 +1,12 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Response } from "express";
 import { default as createHttpError } from "http-errors";
 import { JoiError } from "../../helpers/error.js";
+import { AuthRequest } from "../../middleware/shared/jwt_helper.js";
 import Event from "../events/Events.model.js";
 import ResearchService from "./Research.service.js";
 
 export const CreateResearch = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {

@@ -1,7 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import { default as createHttpError } from "http-errors";
 import { JoiError } from "../../helpers/error.js";
+import VectorMemoryService from "../../memories/VectorMemoryService.js";
 import { AuthRequest } from "../../middleware/shared/jwt_helper.js";
+import Event from "../events/Events.model.js";
+import ResearchResultSchema from "../research/Research.model.js";
 import ChatService from "./Chat.service.js";
 
 export const CreateChat = async (
@@ -51,7 +54,7 @@ export const GetMyChats = async (
 };
 
 export const UpdateChatName = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -66,13 +69,17 @@ export const UpdateChatName = async (
 };
 
 export const DeleteOneChat = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
     const id: string = req.params.id;
     const data = await ChatService.Delete(id);
+    const researchIds = await ResearchResultSchema.find({ chat: id });
+    await ResearchResultSchema.deleteMany({ chat: id });
+    await VectorMemoryService.getInstance().deleteResearchMemory(id);
+    await Event.deleteMany({ research: researchIds });
     res.send(data);
   } catch (e: any) {
     next(e);
