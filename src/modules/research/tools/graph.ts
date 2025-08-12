@@ -30,6 +30,17 @@ if (!process.env.GEMINI_API_KEY) {
 async function generateQuery(state: any, config: any) {
   console.log("🔍 Generating search queries...");
 
+  if (config.streamCallback) {
+    await config.streamCallback(
+      "generate_query",
+      {
+        title: "Generating Search Queries",
+        message: "Creating optimized search queries for research",
+      },
+      config.researchId
+    );
+  }
+
   const configuration = Configuration.fromRunnableConfig(config);
 
   const querySchema = z.object({
@@ -90,6 +101,18 @@ async function generateQuery(state: any, config: any) {
 
     console.log(`✅ Generated ${queries.length} search queries`);
 
+    if (config.streamCallback) {
+      await config.streamCallback(
+        "generate_query",
+        {
+          search_query: queries.map((q) => q.query || q),
+          title: "Search Queries Generated",
+          message: `Generated ${queries.length} search queries`,
+        },
+        config.researchId
+      );
+    }
+
     return {
       search_query: queries,
     };
@@ -126,6 +149,17 @@ function continueToWebResearch(state: any) {
 
 async function webResearch(state: any, config: any) {
   console.log(`🌐 Performing web research for queries...`);
+
+  if (config.streamCallback) {
+    await config.streamCallback(
+      "web_research",
+      {
+        title: "Web Research",
+        message: "Starting web research for generated queries",
+      },
+      config.researchId
+    );
+  }
 
   const configuration = Configuration.fromRunnableConfig(config);
   const model = new ChatGoogleGenerativeAI({
@@ -215,6 +249,19 @@ async function webResearch(state: any, config: any) {
       console.log(`✅ Completed research for: ${query}`);
     }
 
+    // Emit web research completion event
+    if (config.streamCallback) {
+      await config.streamCallback(
+        "web_research",
+        {
+          sources_gathered: allSources,
+          title: "Web Research Complete",
+          message: `Gathered ${allSources.length} sources from web research`,
+        },
+        config.researchId
+      );
+    }
+
     return {
       sources_gathered: allSources,
       web_research_result: allResults,
@@ -228,6 +275,17 @@ async function webResearch(state: any, config: any) {
 
 async function reflection(state: any, config: any) {
   console.log("🤔 Performing reflection on research...");
+
+  if (config.streamCallback) {
+    await config.streamCallback(
+      "reflection",
+      {
+        title: "Reflection",
+        message: "Analyzing research results and identifying gaps",
+      },
+      config.researchId
+    );
+  }
 
   const configuration = Configuration.fromRunnableConfig(config);
 
@@ -272,6 +330,20 @@ async function reflection(state: any, config: any) {
     console.log(
       `✅ Reflection complete. Sufficient: ${reflectionResult.is_sufficient}`
     );
+
+    if (config.streamCallback) {
+      await config.streamCallback(
+        "reflection",
+        {
+          title: "Reflection Complete",
+          message: `Research analysis complete. Sufficient: ${reflectionResult.is_sufficient}`,
+          is_sufficient: reflectionResult.is_sufficient,
+          knowledge_gap: reflectionResult.knowledge_gap,
+          follow_up_queries: reflectionResult.follow_up_queries,
+        },
+        config.researchId
+      );
+    }
 
     return {
       search_query: reflectionResult.follow_up_queries.map(
@@ -328,6 +400,17 @@ function evaluateResearch(state: any, config: any) {
 
 async function finalizeAnswer(state: any, config: any) {
   console.log("📝 Finalizing research answer...");
+
+  if (config.streamCallback) {
+    await config.streamCallback(
+      "finalize_answer",
+      {
+        title: "Finalizing Answer",
+        message: "Composing and presenting the final research answer",
+      },
+      config.researchId
+    );
+  }
 
   const configuration = Configuration.fromRunnableConfig(config);
   const model = new ChatGoogleGenerativeAI({
@@ -390,6 +473,19 @@ async function finalizeAnswer(state: any, config: any) {
 
     console.log("✅ Research finalized successfully");
     console.log(`🔍 Debug - Final sources count: ${finalUniqueSources.length}`);
+
+    if (config.streamCallback) {
+      await config.streamCallback(
+        "finalize_answer",
+        {
+          title: "Research Complete",
+          message: "Final research answer has been composed and finalized",
+          final_answer: finalAnswer,
+          sources_count: finalUniqueSources.length,
+        },
+        config.researchId
+      );
+    }
 
     const sourcesWithReferences = finalUniqueSources.map(
       (source: any, index: number) => ({

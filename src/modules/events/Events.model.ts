@@ -11,9 +11,9 @@ const EventSchema = new Schema(
       type: String,
       required: [true, "Step is required"],
     },
-    message: {
-      type: String,
-      required: [true, "Message is required"],
+    data: {
+      type: Schema.Types.Mixed,
+      required: [true, "Data is required"],
     },
     timestamp: {
       type: Date,

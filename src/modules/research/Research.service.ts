@@ -136,26 +136,40 @@ class ResearchService {
       const configuration = new Configuration(result?.config);
       const runnableConfig = {
         configurable: configuration.toObject(),
+        streamCallback: streamCallback,
+        researchId: result?.query || "unknown",
       };
-
-      console.log(`🚀 Starting research for query: "${result?.query}"`);
-
-      const graphResult = await graph.invoke(initialState, runnableConfig);
-
       const researchResult = new ResearchResultModel({
         chat: result?.chat,
         query: result?.query,
-        result: graphResult.running_summary,
-        sources: graphResult.sources_gathered,
-        images: graphResult.images || [],
-        research_loops: graphResult.research_loop_count,
-        search_queries: graphResult.search_query,
+        result: "Research in progress...",
+        sources: [],
+        images: [],
+        research_loops: 0,
+        search_queries: [],
         config: result?.config,
       });
 
       const savedResult = await researchResult.save();
+      runnableConfig.researchId = savedResult._id?.toString() || "unknown";
 
-      if (result?.chat && savedResult.result) {
+      console.log(`🚀 Starting research for query: "${result?.query}"`);
+      const graphResult = await graph.invoke(initialState, runnableConfig);
+
+      savedResult.result = graphResult.running_summary || "Research completed";
+      savedResult.sources = (graphResult.sources_gathered || []) as any[];
+      savedResult.images = graphResult.images || [];
+      savedResult.research_loops = graphResult.research_loop_count || 0;
+      savedResult.search_queries = (graphResult.search_query || []).map(
+        (q: any) => ({
+          query: q.query || q,
+          rationale: q.rationale || "Generated search query",
+        })
+      );
+
+      const finalResult = await savedResult.save();
+
+      if (result?.chat && finalResult.result) {
         try {
           const researchMemory: ResearchMemory = {
             chatId: result.chat,

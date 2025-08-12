@@ -19,7 +19,7 @@ export const CreateResearch = async (
     const streamCallback = async (
       step: string,
       data: any,
-      research: string
+      researchId: string
     ) => {
       const streamData = {
         step,
@@ -30,14 +30,17 @@ export const CreateResearch = async (
       if (res.flush) {
         res.flush();
       }
-      Event.create({
-        research: research,
-        step,
-        message: data?.message,
-        timestamp: new Date().toISOString(),
-      }).catch((err) => {
-        console.error("Failed to save event:", err);
-      });
+
+      if (researchId && researchId !== "unknown") {
+        Event.create({
+          research: researchId,
+          step,
+          data,
+          timestamp: new Date().toISOString(),
+        }).catch((err) => {
+          console.error("Failed to save event:", err);
+        });
+      }
     };
 
     const finalData = await ResearchService.CreateWithStreaming(
