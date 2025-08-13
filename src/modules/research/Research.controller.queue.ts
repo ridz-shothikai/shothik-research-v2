@@ -289,3 +289,53 @@ export const GetChatResearches = async (
     next(e);
   }
 };
+
+export const GetOneResearch = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const data = await ResearchResultSchema.aggregate([
+      {
+        $match: {
+          $and: [{ _id: toObjectId(id) }],
+        },
+      },
+      {
+        $lookup: {
+          from: "events",
+          let: { researchId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$research", "$$researchId"],
+                },
+              },
+            },
+          ],
+          as: "events",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          chat: 1,
+          query: 1,
+          result: 1,
+          sources: 1,
+          images: 1,
+          research_loops: 1,
+          search_queries: 1,
+          config: 1,
+          events: 1,
+        },
+      },
+    ]);
+    res.json(data[0]);
+  } catch (e: any) {
+    next(e);
+  }
+};

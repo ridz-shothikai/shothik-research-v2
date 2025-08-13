@@ -1,8 +1,8 @@
 import { Job, QueueEvents } from "bullmq";
 import { IResearchResult } from "../modules/research/Research.interface.js";
 import { logger } from "../utils/logger.js";
-import { researchQueue, vectorMemoryQueue } from "./ResearchQueue.js";
 import { ResearchJobData, VectorMemoryJobData } from "./Queue.interface.js";
+import { researchQueue, vectorMemoryQueue } from "./ResearchQueue.js";
 
 export class QueueService {
   static async addResearchJob(
