@@ -19,6 +19,9 @@ jobs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set Short Commit Hash
+      id: vars
+      run: echo "SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
     - name: Extract metadata (tags, labels) for Docker
       id: meta
       uses: docker/metadata-action@v5
@@ -29,5 +32,5 @@ jobs:
       with:
         context: .
         push: true
-        tags: ghcr.io/${{ github.repository }}:${{ github.sha.substring(0, 7) }}
+        tags: ghcr.io/${{ github.repository }}:${{ env.SHORT_SHA }}
         labels: ${{ steps.meta.outputs.labels }}
