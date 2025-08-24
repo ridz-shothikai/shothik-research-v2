@@ -48,7 +48,9 @@
     "morgan": "^1.10.0",
     "redis": "^5.8.0",
     "uuid": "^9.0.1",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "@ridz-shothikai/shothik-auth-service": "1.0.6",
+    "@ridz-shothikai/shothik-shared-services": "1.0.5"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
