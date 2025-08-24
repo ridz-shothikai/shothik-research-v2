@@ -13,6 +13,7 @@ RUN sed -i "s|\${GITHUB_PAT}|${GITHUB_PAT}|" .npmrc
 RUN echo "@ridz-shothikai:registry=https://npm.pkg.github.com" > .npmrc && \
     echo "//npm.pkg.github.com/:_authToken=${GITHUB_PAT}" >> .npmrc && \
     echo "always-auth=true" >> .npmrc
+    
 # Install application dependencies
 RUN npm install
 
