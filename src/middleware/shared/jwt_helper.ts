@@ -5,6 +5,7 @@ import JWT, { SignOptions, VerifyErrors } from "jsonwebtoken";
 dotenv.config();
 
 export interface AuthRequest extends Request {
+  id?: string;
   payload?: {
     aud: string;
     role?: string;
