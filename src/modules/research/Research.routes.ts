@@ -1,5 +1,5 @@
+import { auth } from "@ridz-shothikai/shothik-auth-service/src/middleware.js";
 import express from "express";
-import { verifyAccessToken } from "../../middleware/shared/jwt_helper.js";
 import * as ResearchController from "./Research.controller.js";
 import * as QueueController from "./Research.controller.queue.js";
 
@@ -7,40 +7,40 @@ const router: express.Router = express.Router();
 
 router.post(
   "/create_research",
-  verifyAccessToken,
+  auth,
   ResearchController.CreateResearch
 );
 
 router.post(
   "/create_research_queue",
-  verifyAccessToken,
+  auth,
   QueueController.CreateResearchWithQueue
 );
 router.get(
-  "/get_chat_researches/:chat",
-  verifyAccessToken,
+  "/get_chat_researches/:chatId",
+  auth,
   QueueController.GetChatResearches
 );
 router.get(
   "/get_one_research/:id",
-  verifyAccessToken,
+  auth,
   QueueController.GetOneResearch
 );
 router.get(
   "/job/:jobId/status",
-  verifyAccessToken,
+  auth,
   QueueController.GetResearchJobStatus
 );
 router.post(
   "/job/:jobId/cancel",
-  verifyAccessToken,
+  auth,
   QueueController.CancelResearchJob
 );
 router.post(
   "/job/:jobId/retry",
-  verifyAccessToken,
+  auth,
   QueueController.RetryResearchJob
 );
-router.get("/queue/stats", verifyAccessToken, QueueController.GetQueueStats);
+router.get("/queue/stats", auth, QueueController.GetQueueStats);
 
 export default router;

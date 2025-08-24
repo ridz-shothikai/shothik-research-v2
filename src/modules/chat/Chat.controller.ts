@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Response } from "express";
 import { default as createHttpError } from "http-errors";
 import { JoiError } from "../../helpers/error.js";
 import VectorMemoryService from "../../memories/VectorMemoryService.js";
@@ -13,7 +13,7 @@ export const CreateChat = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const user = req.payload?.aud || "";
+    const user = req.id || "";
     const data = await ChatService.Create({ ...req.body, user });
     res.send(data);
   } catch (e: any) {
@@ -26,7 +26,7 @@ export const CreateChat = async (
 };
 
 export const GetOneChat = async (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -45,7 +45,7 @@ export const GetMyChats = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const id = req.payload?.aud || "";
+    const id = req.id || "";
     const data = await ChatService.GetMyChats(id);
     res.send(data);
   } catch (e: any) {
