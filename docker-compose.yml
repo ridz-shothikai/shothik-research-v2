@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app: # Your current project's service (shothik-research-v2)
+    image: ghcr.io/ridz-shothikai/shothik-research-v2:latest # Use 'latest' or a specific commit SHA tag
+    container_name: shothik-research-v2-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    external: true
