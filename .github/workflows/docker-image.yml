@@ -27,6 +27,7 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: ghcr.io/${{ github.repository }}
+
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
@@ -34,5 +35,5 @@ jobs:
         push: true
         tags: ghcr.io/${{ github.repository }}:${{ env.SHORT_SHA }}
         build-args: |
-          GITHUB_PAT=${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN=${{ secrets.PAT_TOKEN }}
         labels: ${{ steps.meta.outputs.labels }}
