@@ -246,11 +246,11 @@ export const GetChatResearches = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { chat } = req.params;
+    const { chatId } = req.params;
     const data = await ResearchResultSchema.aggregate([
       {
         $match: {
-          $and: [{ chat: toObjectId(chat) }],
+          $and: [{ chat: toObjectId(chatId) }],
         },
       },
       {
