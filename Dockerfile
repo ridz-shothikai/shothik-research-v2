@@ -3,16 +3,16 @@ FROM node:18-alpine
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
-ARG GITHUB_PAT
+ARG PAT_TOKEN
 # Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
 
 
 COPY .npmrc.template .npmrc
 
-RUN sed -i "s|\${GITHUB_PAT}|${GITHUB_PAT}|" .npmrc
+RUN sed -i "s|\${PAT_TOKEN}|${PAT_TOKEN}|" .npmrc
 RUN echo "@ridz-shothikai:registry=https://npm.pkg.github.com" > .npmrc && \
-    echo "//npm.pkg.github.com/:_authToken=${GITHUB_PAT}" >> .npmrc && \
+    echo "//npm.pkg.github.com/:_authToken=${PAT_TOKEN}" >> .npmrc && \
     echo "always-auth=true" >> .npmrc
 
 # Install application dependencies
