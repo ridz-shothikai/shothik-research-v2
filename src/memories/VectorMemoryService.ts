@@ -40,8 +40,6 @@ export class VectorMemoryService {
   public async initialize(): Promise<void> {
     if (this.isInitialized) return;
     try {
-      logger.info("🔧 Initializing Vector Memory Service with Pinecone...");
-
       const indexName = process.env.PINECONE_INDEX_NAME!;
       const pineconeIndex = this.pinecone.Index(indexName);
 
@@ -55,7 +53,6 @@ export class VectorMemoryService {
       );
 
       this.isInitialized = true;
-      logger.info("✅ Vector Memory Service initialized successfully");
     } catch (error) {
       logger.error("❌ Failed to initialize Vector Memory Service:", error);
       throw error;
@@ -68,7 +65,6 @@ export class VectorMemoryService {
     }
 
     try {
-      logger.info(`💾 Storing research memory for chat: ${memory.chatId}`);
       const content = `Query: ${memory.query}\n\nResult: ${
         memory.result
       }\n\nSources: ${memory.sources.join(", ")}`;
@@ -87,10 +83,6 @@ export class VectorMemoryService {
       await this.vectorStore!.addDocuments([document], {
         ids: [uniqueId],
       });
-
-      logger.info(
-        `✅ Research memory stored successfully for chat: ${memory.chatId} with ID: ${uniqueId}`
-      );
     } catch (error) {
       logger.error("❌ Failed to store research memory:", error);
       throw error;
@@ -107,14 +99,9 @@ export class VectorMemoryService {
     }
 
     try {
-      logger.info(`🔍 Finding similar research for query: "${query}"`);
       const keywordData =
         await this.keywordExtractor.extractPrioritizedKeywords(query);
       const keyTerms = keywordData.keywords;
-      logger.info(
-        `🤖 AI extracted ${keyTerms.length} keywords: ${keyTerms.join(", ")}`
-      );
-      logger.info(`📊 Query priority score: ${keywordData.priority}/10`);
       const searchPromises = [
         this.vectorStore!.similaritySearchWithScore(query, limit * 4),
         this.vectorStore!.similaritySearchWithScore(
@@ -127,15 +114,8 @@ export class VectorMemoryService {
             this.vectorStore!.similaritySearchWithScore(term, limit * 2)
           ),
       ];
-
-      logger.info(`🔍 Running ${searchPromises.length} search strategies...`);
       const allResults = await Promise.all(searchPromises);
       const combinedResults = allResults.flat();
-
-      logger.info(
-        `📊 Combined search returned ${combinedResults.length} total results`
-      );
-
       const seenIds = new Set<string>();
       const uniqueResults = combinedResults.filter(([doc, score]) => {
         const docId = `${doc.metadata.chatId}_${doc.metadata.timestamp}`;
@@ -144,10 +124,6 @@ export class VectorMemoryService {
         return true;
       });
 
-      logger.info(
-        `📊 After deduplication: ${uniqueResults.length} unique results`
-      );
-
       const filteredResults = [];
       for (const [doc, score] of uniqueResults) {
         const isCurrentChat = doc.metadata.chatId === chatId;
@@ -155,9 +131,6 @@ export class VectorMemoryService {
         const isFromDifferentChat = !isCurrentChat;
         const isRecent = this.isRecentEnough(doc.metadata.timestamp);
         if (!isResearchMemory || !isFromDifferentChat || !isRecent) {
-          logger.info(
-            `🔍 Skipping result: "${doc.metadata.query}" (basic criteria failed)`
-          );
           continue;
         }
 
@@ -167,9 +140,6 @@ export class VectorMemoryService {
           score as number
         );
         if (!hasContextualRelevance) {
-          logger.info(
-            `🔍 Skipping result: "${doc.metadata.query}" (contextual relevance failed)`
-          );
           continue;
         }
         const hasExcellentScore = score > 0.6;
@@ -178,33 +148,13 @@ export class VectorMemoryService {
           ? await this.hasKeywordOverlap(query, doc.metadata.query)
           : false;
 
-        logger.info(`🔍 Evaluating result: "${doc.metadata.query}"`);
-        logger.info(
-          `   - Chat ID: ${doc.metadata.chatId} (current: ${chatId}, same: ${isCurrentChat})`
-        );
-        logger.info(
-          `   - Score: ${score.toFixed(
-            3
-          )} (excellent: ${hasExcellentScore}, good: ${hasGoodScore})`
-        );
-        logger.info(`   - Keyword match: ${hasKeywordMatch}`);
-        logger.info(
-          `   - Type: ${doc.metadata.type} (is research: ${isResearchMemory})`
-        );
-
         const shouldInclude =
           hasExcellentScore || (hasGoodScore && hasKeywordMatch);
-
-        logger.info(`   - Should include: ${shouldInclude}`);
 
         if (shouldInclude) {
           filteredResults.push([doc, score]);
         }
       }
-
-      logger.info(
-        `📊 After filtering: ${filteredResults.length} relevant results`
-      );
 
       const similarResearch: SimilarResearch[] = filteredResults
         .sort(
@@ -225,17 +175,6 @@ export class VectorMemoryService {
           };
         });
 
-      logger.info(
-        `📊 Found ${similarResearch.length} similar research results`
-      );
-      similarResearch.forEach((research, index) => {
-        logger.info(
-          `   ${index + 1}. "${
-            research.query
-          }" (score: ${research.similarity.toFixed(3)})`
-        );
-      });
-
       return similarResearch;
     } catch (error) {
       logger.error("❌ Failed to find similar research:", error);
@@ -249,7 +188,6 @@ export class VectorMemoryService {
     }
 
     try {
-      logger.info(`📚 Retrieving research history for chat: ${chatId}`);
       const results = await this.vectorStore!.similaritySearch(
         `chatId:${chatId}`,
         20,
@@ -257,7 +195,6 @@ export class VectorMemoryService {
       );
 
       if (results.length === 0) {
-        logger.info(`📭 No research history found for chat: ${chatId}`);
         return [];
       }
 
@@ -273,10 +210,6 @@ export class VectorMemoryService {
           timestamp: new Date(doc.metadata.timestamp),
         }))
         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-      logger.info(
-        `✅ Retrieved ${memories.length} research entries for chat: ${chatId}`
-      );
       return memories;
     } catch (error) {
       logger.error("❌ Failed to retrieve research history:", error);
@@ -288,11 +221,8 @@ export class VectorMemoryService {
     const cacheKey = query.toLowerCase().trim();
 
     if (this.keywordCache.has(cacheKey)) {
-      logger.info(`🎯 Using cached keywords for: "${query}"`);
       return this.keywordCache.get(cacheKey)!;
     }
-
-    logger.info(`🤖 AI extracting keywords from: "${query}"`);
     const keywords = await this.keywordExtractor.extractKeywordsFlat(query);
     this.keywordCache.set(cacheKey, keywords);
     return keywords;
@@ -322,16 +252,6 @@ export class VectorMemoryService {
       );
 
       const hasOverlap = overlap > 0.25 || (overlap > 0.15 && partialMatches);
-
-      logger.info(`🔗 Keyword overlap: ${query1} <-> ${query2}`);
-      logger.info(`   Keywords1: ${keywords1.join(", ")}`);
-      logger.info(`   Keywords2: ${keywords2.join(", ")}`);
-      logger.info(
-        `   Overlap: ${overlap.toFixed(
-          3
-        )}, Partial: ${partialMatches}, Result: ${hasOverlap}`
-      );
-
       return hasOverlap;
     } catch (error) {
       logger.error("❌ AI keyword overlap failed, using fallback:", error);
@@ -380,9 +300,6 @@ export class VectorMemoryService {
       query2Lower.includes("iphone 1") ||
       query2Lower.includes("model");
     if (isQuery1Corporate && isQuery2ProductComparison) {
-      logger.info(
-        `   - Contextual relevance: false (corporate vs product comparison mismatch)`
-      );
       return false;
     }
     const isQuery1General =
@@ -395,13 +312,8 @@ export class VectorMemoryService {
       query2Lower.includes("max");
 
     if (isQuery1General && isQuery2SpecificProduct && similarityScore < 0.5) {
-      logger.info(
-        `   - Contextual relevance: false (general vs specific product mismatch)`
-      );
       return false;
     }
-
-    logger.info(`   - Contextual relevance: true`);
     return true;
   }
 
@@ -420,14 +332,10 @@ export class VectorMemoryService {
     }
 
     try {
-      logger.info(`🗑️ Deleting all research memories for chat: ${chatId}`);
 
       const memories = await this.getResearchHistory(chatId);
 
       if (memories.length === 0) {
-        logger.info(
-          `📭 No research memories found to delete for chat: ${chatId}`
-        );
         return;
       }
       const vectorIds = memories.map(
@@ -442,19 +350,11 @@ export class VectorMemoryService {
         try {
           const namespacedIndex = pineconeIndex.namespace("research_memory");
           await namespacedIndex.deleteMany(vectorIds);
-
-          logger.info(
-            `✅ Successfully deleted ${vectorIds.length} research memories for chat: ${chatId}`
-          );
         } catch (deleteError) {
           logger.error(`❌ Failed to delete vectors by IDs:`, deleteError);
           throw new Error(`Failed to delete research memories: ${deleteError}`);
         }
       }
-
-      logger.info(
-        `✅ Research memory deletion process completed for chat: ${chatId}`
-      );
     } catch (error) {
       logger.error("❌ Failed to delete research memory:", error);
       throw error;

@@ -80,25 +80,59 @@ export const CreateResearchWithQueue = async (
           return;
         }
 
-        if (
-          jobStatus.progress &&
-          JSON.stringify(jobStatus.progress) !== JSON.stringify(lastProgress)
-        ) {
-          lastProgress = jobStatus.progress;
-
-          res.write(JSON.stringify(jobStatus.progress) + "\n");
-          res.flush();
-
+        if (jobStatus.progress) {
           const progress = jobStatus.progress as any;
-          if (progress.researchId && progress.researchId !== "unknown") {
-            Event.create({
-              research: progress.researchId,
-              step: progress.step,
-              data: progress.data,
-              timestamp: progress.timestamp,
-            }).catch((err) => {
-              logger.error("Failed to save event:", err);
-            });
+          
+          // Handle new events array structure
+          if (progress.events && Array.isArray(progress.events)) {
+            const lastEventCount = (lastProgress as any)?.events?.length || 0;
+            const currentEventCount = progress.events.length;
+            
+            // Send any new events that weren't sent before
+            if (currentEventCount > lastEventCount) {
+              const newEvents = progress.events.slice(lastEventCount);
+              
+              for (const event of newEvents) {
+                res.write(JSON.stringify(event) + "\n");
+                res.flush();
+                
+                // Save to database
+                if (event.researchId && event.researchId !== "unknown") {
+                  Event.create({
+                    research: event.researchId,
+                    step: event.step,
+                    data: event.data,
+                    timestamp: event.timestamp,
+                  }).catch((err) => {
+                    logger.error("Failed to save event:", err);
+                  });
+                }
+              }
+              
+              lastProgress = progress;
+            }
+          } else {
+            // Fallback for old single-event structure
+            const currentProgress = JSON.stringify(jobStatus.progress);
+            const lastProgressStr = JSON.stringify(lastProgress);
+            
+            if (currentProgress !== lastProgressStr) {
+              lastProgress = jobStatus.progress;
+
+              res.write(JSON.stringify(jobStatus.progress) + "\n");
+              res.flush();
+
+              if (progress.researchId && progress.researchId !== "unknown") {
+                Event.create({
+                  research: progress.researchId,
+                  step: progress.step,
+                  data: progress.data,
+                  timestamp: progress.timestamp,
+                }).catch((err) => {
+                  logger.error("Failed to save event:", err);
+                });
+              }
+            }
           }
         }
       } catch (error) {
@@ -117,7 +151,6 @@ export const CreateResearchWithQueue = async (
     }, 1000);
 
     req.on("close", () => {
-      logger.info(`🔌 Client disconnected for job ${job.id}`);
       clearInterval(pollInterval);
       if (!isCompleted) {
       }

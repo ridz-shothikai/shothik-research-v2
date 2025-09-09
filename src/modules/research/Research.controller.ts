@@ -27,11 +27,8 @@ export const CreateResearch = async (
         data,
         timestamp: new Date().toISOString(),
       };
+      console.log("Stream data Root--->:", streamData);
       res.write(JSON.stringify(streamData) + "\n");
-      if (res.flush) {
-        res.flush();
-      }
-
       if (researchId && researchId !== "unknown") {
         Event.create({
           research: researchId,
@@ -41,6 +38,9 @@ export const CreateResearch = async (
         }).catch((err) => {
           console.error("Failed to save event:", err);
         });
+      }
+      if (res.flush) {
+        res.flush();
       }
     };
 

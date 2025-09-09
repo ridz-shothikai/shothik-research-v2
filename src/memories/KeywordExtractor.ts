@@ -50,8 +50,6 @@ export class AIKeywordExtractor {
 
   public async extractKeywords(query: string): Promise<KeywordExtraction> {
     try {
-      logger.info(`🤖 AI extracting keywords from: "${query}"`);
-
       const prompt = this.buildExtractionPrompt(query);
       const response = await this.model.invoke([
         { role: "user", content: prompt },
@@ -59,12 +57,6 @@ export class AIKeywordExtractor {
       const result = (await this.parser.parse(
         String(response.content)
       )) as KeywordExtraction;
-
-      logger.info(
-        `✅ Extracted ${
-          result.primary_keywords.length
-        } primary keywords: ${result.primary_keywords.join(", ")}`
-      );
 
       return result;
     } catch (error) {

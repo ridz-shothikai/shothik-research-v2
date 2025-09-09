@@ -19,20 +19,12 @@ class ImageSearchService {
   ): Promise<ImageResult[]> {
     try {
       if (!this.apiKey) {
-        console.log("⚠️  Google API key not found, skipping image search");
         return [];
       }
 
       if (!this.searchEngineId) {
-        console.log(
-          "⚠️  Google Custom Search Engine ID not found, skipping image search"
-        );
         return [];
       }
-
-      console.log(
-        `🖼️  Searching for ${numImages} images for query: "${query}"`
-      );
 
       const response = await this.customSearch.cse.list({
         auth: this.apiKey,
@@ -48,7 +40,6 @@ class ImageSearchService {
       });
 
       if (!response.data.items || response.data.items.length === 0) {
-        console.log("📷 No images found for query");
         return [];
       }
 
@@ -63,8 +54,6 @@ class ImageSearchService {
         context_url: item.image?.contextLink,
         relevance_score: this.calculateRelevanceScore(item, query, index),
       }));
-
-      console.log(`✅ Found ${images.length} images for research`);
       return images;
     } catch (error: any) {
       console.error(

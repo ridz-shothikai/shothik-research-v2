@@ -24,10 +24,6 @@ export class QueueService {
         .toString(36)
         .substr(2, 9)}`,
     });
-
-    logger.info(
-      `📋 Added research job ${job.id} to queue for connection ${connectionId}`
-    );
     return job;
   }
 
@@ -69,8 +65,6 @@ export class QueueService {
     const job = await vectorMemoryQueue.add(`vector-${type}`, jobData, {
       delay: type === "store" ? 1000 : 0,
     });
-
-    logger.info(`🧠 Added vector memory job ${job.id} (${type}) to queue`);
     return job;
   }
 
@@ -121,7 +115,6 @@ export class QueueService {
       const job = await Job.fromId(researchQueue, jobId);
       if (job) {
         await job.remove();
-        logger.info(`🚫 Cancelled research job ${jobId}`);
         return true;
       }
       return false;
@@ -136,7 +129,6 @@ export class QueueService {
       const job = await Job.fromId(researchQueue, jobId);
       if (job) {
         await job.retry();
-        logger.info(`🔄 Retrying research job ${jobId}`);
         return true;
       }
       return false;

@@ -46,24 +46,25 @@ const researchWorker = new Worker(
   "research-processing",
   async (job: Job<ResearchJobData>) => {
     const { body, connectionId } = job.data;
-
-    logger.info(
-      `🚀 Processing research job ${job.id} for connection ${connectionId}`
-    );
     const streamCallback = async (
       step: string,
       data: any,
       researchId: string
     ) => {
-      await job.updateProgress({
+      const progressData = {
         step,
         data,
         timestamp: new Date().toISOString(),
         researchId,
-      });
+      };
+      const currentProgress = (job.progress as any) || { events: [] };
+      if (!currentProgress.events) {
+        currentProgress.events = [];
+      }
+      currentProgress.events.push(progressData);
+      currentProgress.latest = progressData;
 
-      logger.info(`📊 Research ${job.id} - Step: ${step}`);
-
+      await job.updateProgress(currentProgress);
       await job.log(`Step: ${step} - ${JSON.stringify(data)}`);
     };
 
@@ -72,8 +73,6 @@ const researchWorker = new Worker(
         body,
         streamCallback
       );
-
-      logger.info(`✅ Research job ${job.id} completed successfully`);
       return result;
     } catch (error: any) {
       logger.error(`❌ Research job ${job.id} failed:`, error);
@@ -97,8 +96,6 @@ const vectorMemoryWorker = new Worker(
   async (job: Job<VectorMemoryJobData>) => {
     const { type, data, researchId } = job.data;
 
-    logger.info(`🧠 Processing vector memory job ${job.id} - Type: ${type}`);
-
     try {
       switch (type) {
         case "store":
@@ -115,8 +112,6 @@ const vectorMemoryWorker = new Worker(
         default:
           throw new Error(`Unknown vector memory job type: ${type}`);
       }
-
-      logger.info(`✅ Vector memory job ${job.id} completed`);
     } catch (error: any) {
       logger.error(`❌ Vector memory job ${job.id} failed:`, error);
       throw error;

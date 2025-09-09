@@ -25,32 +25,12 @@ class ResearchService {
 
       if (result?.chat) {
         try {
-          logger.info(`🧠 Checking vector memory for chat: ${result.chat}`);
           existingMemories = await vectorMemory.getResearchHistory(result.chat);
           similarResearch = await vectorMemory.findSimilarResearch(
             result.query,
             result.chat,
             5
           );
-
-          if (existingMemories.length > 0) {
-            logger.info(
-              `📚 Found ${existingMemories.length} existing research entries for chat: ${result.chat}`
-            );
-          }
-
-          if (similarResearch.length > 0) {
-            logger.info(
-              `🔍 Found ${similarResearch.length} similar research results`
-            );
-            similarResearch.forEach((similar, index) => {
-              logger.info(
-                `   ${index + 1}. Similar query: "${
-                  similar.query
-                }" (similarity: ${similar.similarity.toFixed(3)})`
-              );
-            });
-          }
         } catch (vectorError) {
           logger.error(
             "⚠️ Vector memory operation failed, continuing without memory:",
@@ -127,10 +107,6 @@ class ResearchService {
             content: `${contextMessage}Please use this context to enhance your research and avoid duplicating previous work. Build upon existing knowledge where relevant.`,
           },
         ]);
-
-        logger.info(
-          "🧠 Enhanced research context with similar research and history"
-        );
       }
 
       const configuration = new Configuration(result?.config);
@@ -152,8 +128,6 @@ class ResearchService {
 
       const savedResult = await researchResult.save();
       runnableConfig.researchId = savedResult._id?.toString() || "unknown";
-
-      console.log(`🚀 Starting research for query: "${result?.query}"`);
       const graphResult = await graph.invoke(initialState, runnableConfig);
 
       savedResult.result = graphResult.running_summary || "Research completed";
@@ -178,10 +152,6 @@ class ResearchService {
             sources: sourcesToStringArray(savedResult.sources || []),
             timestamp: new Date(),
           };
-
-          logger.info(
-            `💾 Storing new research memory for chat: ${result.chat}`
-          );
           await vectorMemory.storeResearchMemory(researchMemory);
         } catch (vectorError) {
           logger.error(
@@ -226,11 +196,12 @@ class ResearchService {
     }
   }
 
-  static async storeResearchMemory(researchMemory: ResearchMemory): Promise<void> {
+  static async storeResearchMemory(
+    researchMemory: ResearchMemory
+  ): Promise<void> {
     try {
       const vectorMemory = VectorMemoryService.getInstance();
       await vectorMemory.storeResearchMemory(researchMemory);
-      logger.info(`💾 Stored research memory for chat: ${researchMemory.chatId}`);
     } catch (error) {
       logger.error("Failed to store research memory:", error);
       throw error;

@@ -28,8 +28,6 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 async function generateQuery(state: any, config: any) {
-  console.log("🔍 Generating search queries...");
-
   if (config.streamCallback) {
     await config.streamCallback(
       "generate_query",
@@ -99,18 +97,23 @@ async function generateQuery(state: any, config: any) {
     state.addSearchQueries(queries);
     state.initial_search_query_count = queries.length;
 
-    console.log(`✅ Generated ${queries.length} search queries`);
-
     if (config.streamCallback) {
-      await config.streamCallback(
-        "generate_query",
-        {
-          search_query: queries.map((q) => q.query || q),
-          title: "Search Queries Generated",
-          message: `Generated ${queries.length} search queries`,
-        },
-        config.researchId
-      );
+      try {
+        await config.streamCallback(
+          "generate_query",
+          {
+            search_query: queries.map((q) => q.query || q),
+            title: "Search Queries Generated",
+            message: `Generated ${queries.length} search queries`,
+          },
+          config.researchId
+        );
+      } catch (callbackError) {
+        console.error(
+          "❌ Error sending generate query completion callback:",
+          callbackError
+        );
+      }
     }
 
     return {
@@ -143,13 +146,10 @@ async function generateQuery(state: any, config: any) {
 }
 
 function continueToWebResearch(state: any) {
-  console.log("🚀 Continuing to web research...");
   return "web_research";
 }
 
 async function webResearch(state: any, config: any) {
-  console.log(`🌐 Performing web research for queries...`);
-
   if (config.streamCallback) {
     await config.streamCallback(
       "web_research",
@@ -175,51 +175,21 @@ async function webResearch(state: any, config: any) {
   try {
     for (const queryObj of state.search_query) {
       const query = queryObj.query || queryObj;
-      console.log(`🔍 Researching: ${query}`);
       const prompt = webSearcherInstructions(query, getCurrentDate());
       const response = await model.invoke([{ role: "user", content: prompt }], {
         tools: [{ googleSearch: {} }],
       });
-
-      console.log(
-        "🔍 Debug - Response structure:",
-        JSON.stringify(
-          {
-            hasGroundingMetadata:
-              !!response.response_metadata?.groundingMetadata,
-            hasOldGroundingMetadata: !!(response as any).grounding_metadata,
-            groundingChunks:
-              response.response_metadata?.groundingMetadata?.groundingChunks
-                ?.length || 0,
-            responseKeys: Object.keys(response),
-            responseMetadataKeys: Object.keys(response.response_metadata || {}),
-            contentLength: response.content?.length || 0,
-          },
-          null,
-          2
-        )
-      );
 
       const groundingMetadata =
         response.response_metadata?.groundingMetadata || {};
       const groundingChunks = groundingMetadata.groundingChunks || [];
       let sourcesGathered = [];
       if (groundingChunks.length === 0) {
-        console.log(
-          "⚠️  No grounding metadata found, attempting to extract sources from content"
-        );
         sourcesGathered = extractSourcesFromContent(
           String(response.content),
           []
         );
-        console.log(
-          `🔍 Extracted ${sourcesGathered.length} sources from content:`,
-          sourcesGathered.map((s) => s.title)
-        );
       } else {
-        console.log(
-          `✅ Found ${groundingChunks.length} grounding chunks with real URLs`
-        );
         const resolvedUrls = resolveUrls(
           groundingChunks,
           `query_${allResults.length}`
@@ -234,32 +204,30 @@ async function webResearch(state: any, config: any) {
             sourcesGathered.push(citation.source);
           }
         }
-
-        console.log(
-          `🔍 Extracted ${sourcesGathered.length} real sources from grounding metadata:`,
-          sourcesGathered.map((s) => `${s.title} -> ${s.url}`)
-        );
       }
 
       const modifiedText = response.content;
 
       allResults.push(modifiedText);
       allSources.push(...sourcesGathered);
-
-      console.log(`✅ Completed research for: ${query}`);
     }
-
-    // Emit web research completion event
     if (config.streamCallback) {
-      await config.streamCallback(
-        "web_research",
-        {
-          sources_gathered: allSources,
-          title: "Web Research Complete",
-          message: `Gathered ${allSources.length} sources from web research`,
-        },
-        config.researchId
-      );
+      try {
+        await config.streamCallback(
+          "web_research",
+          {
+            sources_gathered: allSources,
+            title: "Web Research Complete",
+            message: `Gathered ${allSources.length} sources from web research`,
+          },
+          config.researchId
+        );
+      } catch (callbackError) {
+        console.error(
+          "❌ Error sending web research completion callback:",
+          callbackError
+        );
+      }
     }
 
     return {
@@ -274,8 +242,6 @@ async function webResearch(state: any, config: any) {
 }
 
 async function reflection(state: any, config: any) {
-  console.log("🤔 Performing reflection on research...");
-
   if (config.streamCallback) {
     await config.streamCallback(
       "reflection",
@@ -327,22 +293,25 @@ async function reflection(state: any, config: any) {
 
     const reflectionResult = await parser.parse(String(response.content));
 
-    console.log(
-      `✅ Reflection complete. Sufficient: ${reflectionResult.is_sufficient}`
-    );
-
     if (config.streamCallback) {
-      await config.streamCallback(
-        "reflection",
-        {
-          title: "Reflection Complete",
-          message: `Research analysis complete. Sufficient: ${reflectionResult.is_sufficient}`,
-          is_sufficient: reflectionResult.is_sufficient,
-          knowledge_gap: reflectionResult.knowledge_gap,
-          follow_up_queries: reflectionResult.follow_up_queries,
-        },
-        config.researchId
-      );
+      try {
+        await config.streamCallback(
+          "reflection",
+          {
+            title: "Reflection Complete",
+            message: `Research analysis complete. Sufficient: ${reflectionResult.is_sufficient}`,
+            is_sufficient: reflectionResult.is_sufficient,
+            knowledge_gap: reflectionResult.knowledge_gap,
+            follow_up_queries: reflectionResult.follow_up_queries,
+          },
+          config.researchId
+        );
+      } catch (callbackError) {
+        console.error(
+          "❌ Error sending reflection completion callback:",
+          callbackError
+        );
+      }
     }
 
     return {
@@ -375,32 +344,22 @@ async function reflection(state: any, config: any) {
 }
 
 function evaluateResearch(state: any, config: any) {
-  console.log("📊 Evaluating research progress...");
-
   const configuration = Configuration.fromRunnableConfig(config);
   const maxLoops = configuration.max_research_loops;
   const currentLoop = state.research_loop_count || 0;
 
-  console.log(`Research loop: ${currentLoop}/${maxLoops}`);
-
   if (currentLoop >= maxLoops) {
-    console.log("🏁 Maximum research loops reached, finalizing...");
     return "finalize_answer";
   }
 
   const lastReflection = getLastReflection(state);
   if (lastReflection && (lastReflection as any).is_sufficient) {
-    console.log("✅ Research deemed sufficient, finalizing...");
     return "finalize_answer";
   }
-
-  console.log("🔄 Continuing research...");
   return "web_research";
 }
 
 async function finalizeAnswer(state: any, config: any) {
-  console.log("📝 Finalizing research answer...");
-
   if (config.streamCallback) {
     await config.streamCallback(
       "finalize_answer",
@@ -419,16 +378,7 @@ async function finalizeAnswer(state: any, config: any) {
     temperature: 0.3,
     maxOutputTokens: 65536,
   });
-
-  console.log(
-    `🔍 Debug - Sources in state:`,
-    state.sources_gathered?.length || 0
-  );
   const uniqueSources = deduplicateSources(state.sources_gathered);
-  console.log(
-    `🔍 Debug - Unique sources after deduplication:`,
-    uniqueSources?.length || 0
-  );
   const formattedSources = formatSources(uniqueSources);
 
   const allSummaries = state.web_research_result
@@ -453,14 +403,6 @@ async function finalizeAnswer(state: any, config: any) {
         String(response.content),
         uniqueSources || []
       );
-      console.log(
-        `🔍 Debug - Extracted ${extractedSources.length} fallback sources from final answer:`,
-        extractedSources.map((s) => s.title)
-      );
-    } else {
-      console.log(
-        `🔍 Debug - Skipping content extraction, already have ${existingSourceCount} grounding metadata sources`
-      );
     }
 
     const allSources = [...(uniqueSources || []), ...extractedSources];
@@ -470,9 +412,6 @@ async function finalizeAnswer(state: any, config: any) {
       String(response.content),
       finalUniqueSources
     );
-
-    console.log("✅ Research finalized successfully");
-    console.log(`🔍 Debug - Final sources count: ${finalUniqueSources.length}`);
 
     if (config.streamCallback) {
       await config.streamCallback(
@@ -505,7 +444,16 @@ async function finalizeAnswer(state: any, config: any) {
 }
 
 async function imageSearch(state: any, config: any) {
-  console.log("🖼️  Performing image search...");
+  if (config.streamCallback) {
+    await config.streamCallback(
+      "image_search",
+      {
+        title: "Image Search",
+        message: "Searching for relevant images to enhance research",
+      },
+      config.researchId
+    );
+  }
 
   try {
     const imageSearchService = new ImageSearchService();
@@ -514,15 +462,55 @@ async function imageSearch(state: any, config: any) {
     const images = await imageSearchService.searchImages(researchTopic, 5);
 
     const relevantImages = imageSearchService.filterByRelevance(images, 0.3);
-    const bestImages = imageSearchService.getBestImages(relevantImages, 3);
+    const bestImages = imageSearchService.getBestImages(relevantImages, 5);
 
-    console.log(`✅ Found ${bestImages.length} relevant images for research`);
+    if (config.streamCallback) {
+      try {
+        console.log("Image search complete started");
+        await config.streamCallback(
+          "image_search",
+          {
+            title: "Image Search Complete",
+            message: `Found ${bestImages.length} relevant images for research`,
+            images_found: bestImages.length,
+            images: bestImages,
+          },
+          config.researchId
+        );
+        console.log("Image search complete ended");
+      } catch (callbackError) {
+        console.error(
+          "❌ Error sending image search completion callback:",
+          callbackError
+        );
+      }
+    }
 
     return {
       images: bestImages,
     };
   } catch (error) {
     console.error("❌ Error in image search:", error);
+
+    if (config.streamCallback) {
+      try {
+        await config.streamCallback(
+          "image_search",
+          {
+            title: "Image Search Error",
+            message: "Failed to search for images, continuing without images",
+            images_found: 0,
+          },
+          config.researchId
+        );
+      } catch (callbackError) {
+        console.error(
+          "❌ Error sending image search error callback:",
+          callbackError
+        );
+      }
+    }
+
     return {
       images: [],
     };
@@ -583,8 +571,6 @@ class ResearchAgentGraph {
   }
 
   async invoke(initialState: any, config: any = {}) {
-    console.log("🚀 Starting research agent graph execution...");
-
     let currentState = new OverallState();
     Object.assign(currentState, initialState);
 
@@ -592,7 +578,6 @@ class ResearchAgentGraph {
     const executionPath = [];
 
     while (currentNode !== "END") {
-      console.log(`📍 Executing node: ${currentNode}`);
       executionPath.push(currentNode);
 
       try {
@@ -612,9 +597,6 @@ class ResearchAgentGraph {
         throw error;
       }
     }
-
-    console.log("✅ Graph execution completed");
-    console.log("📋 Execution path:", executionPath.join(" → "));
 
     return currentState;
   }

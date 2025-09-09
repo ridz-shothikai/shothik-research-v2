@@ -153,7 +153,6 @@ function getCitations(
       }
     }
   }
-
   return citations;
 }
 
@@ -240,17 +239,25 @@ function extractSourcesFromContent(
   content: string,
   existingGroundingSources: any[] = []
 ) {
-  if (!content) return [];
+  if (!content) {
+    return [];
+  }
 
   const sources: any[] = [];
   const numberedCitationRegex = /\[(\d+)\]/g;
   let match;
+  let citationsFound = 0;
+
   while ((match = numberedCitationRegex.exec(content)) !== null) {
     const citationNumber = parseInt(match[1]);
+    citationsFound++;
+
     if (
       citationNumber > 0 &&
       citationNumber <= existingGroundingSources.length
     ) {
+      const source = existingGroundingSources[citationNumber - 1];
+      sources.push(source);
     }
   }
 
