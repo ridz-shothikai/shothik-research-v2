@@ -43,4 +43,9 @@ router.post(
 );
 router.get("/queue/stats", auth, QueueController.GetQueueStats);
 
+router.post(
+  "/simulate_research",
+  QueueController.SimulateResearch
+);
+
 export default router;

@@ -82,20 +82,20 @@ export const CreateResearchWithQueue = async (
 
         if (jobStatus.progress) {
           const progress = jobStatus.progress as any;
-          
+
           // Handle new events array structure
           if (progress.events && Array.isArray(progress.events)) {
             const lastEventCount = (lastProgress as any)?.events?.length || 0;
             const currentEventCount = progress.events.length;
-            
+
             // Send any new events that weren't sent before
             if (currentEventCount > lastEventCount) {
               const newEvents = progress.events.slice(lastEventCount);
-              
+
               for (const event of newEvents) {
                 res.write(JSON.stringify(event) + "\n");
                 res.flush();
-                
+
                 // Save to database
                 if (event.researchId && event.researchId !== "unknown") {
                   Event.create({
@@ -108,14 +108,14 @@ export const CreateResearchWithQueue = async (
                   });
                 }
               }
-              
+
               lastProgress = progress;
             }
           } else {
             // Fallback for old single-event structure
             const currentProgress = JSON.stringify(jobStatus.progress);
             const lastProgressStr = JSON.stringify(lastProgress);
-            
+
             if (currentProgress !== lastProgressStr) {
               lastProgress = jobStatus.progress;
 
@@ -369,6 +369,142 @@ export const GetOneResearch = async (
     ]);
     res.json(data[0]);
   } catch (e: any) {
+    next(e);
+  }
+};
+
+export const SimulateResearch = async (
+  req: any,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { chatId } = req.body;
+
+    if (!chatId) {
+      return next(createHttpError.BadRequest("Chat ID is required"));
+    }
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Transfer-Encoding", "chunked");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    const researchData = await ResearchResultSchema.aggregate([
+      {
+        $match: {
+          chat: toObjectId(chatId),
+        },
+      },
+      {
+        $lookup: {
+          from: "events",
+          let: { researchId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$research", "$$researchId"],
+                },
+              },
+            },
+            {
+              $sort: { timestamp: 1 },
+            },
+          ],
+          as: "events",
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $limit: 1,
+      },
+    ]);
+
+    if (!researchData || researchData.length === 0) {
+      const errorResponse = {
+        step: "error",
+        error: "No research data found for the provided chat ID",
+        timestamp: new Date().toISOString(),
+      };
+      res.write(JSON.stringify(errorResponse) + "\n");
+      res.end();
+      return;
+    }
+
+    const research = researchData[0];
+    const events = research.events || [];
+    const initialResponse = {
+      step: "queued",
+      data: {
+        jobId: `sim_${Date.now()}`,
+        connectionId: `sim_conn_${Date.now()}`,
+        title: "Research Simulation Started",
+        message: "Simulating research from existing data",
+        position: 0,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    res.write(JSON.stringify(initialResponse) + "\n");
+    res.flush();
+    let eventIndex = 0;
+    const simulateNextEvent = () => {
+      if (eventIndex < events.length) {
+        const event = events[eventIndex];
+        const simulatedEvent = {
+          step: event.step,
+          data: event.data,
+          researchId: research._id.toString(),
+          timestamp: new Date().toISOString(),
+        };
+
+        res.write(JSON.stringify(simulatedEvent) + "\n");
+        res.flush();
+
+        eventIndex++;
+        setTimeout(simulateNextEvent, 1000 + Math.random() * 2000);
+      } else {
+        const finalResponse = {
+          step: "completed",
+          data: {
+            _id: research._id,
+            chat: research.chat,
+            query: research.query,
+            result: research.result,
+            sources: research.sources,
+            images: research.images,
+            research_loops: research.research_loops,
+            search_queries: research.search_queries,
+            config: research.config,
+            createdAt: research.createdAt,
+            updatedAt: research.updatedAt,
+          },
+          timestamp: new Date().toISOString(),
+        };
+
+        res.write(JSON.stringify(finalResponse) + "\n");
+        res.end();
+      }
+    };
+    setTimeout(simulateNextEvent, 1000);
+    req.on("close", () => {
+      logger.info("Client disconnected from simulation");
+    });
+  } catch (e: any) {
+    const errorResponse = {
+      step: "error",
+      error: e.message || "An error occurred during simulation",
+      timestamp: new Date().toISOString(),
+    };
+    res.write(JSON.stringify(errorResponse) + "\n");
+    res.end();
+
+    if (e.isJoi === true) {
+      const errorMessage = JoiError(e);
+      return next(createHttpError.BadRequest(errorMessage));
+    }
     next(e);
   }
 };
