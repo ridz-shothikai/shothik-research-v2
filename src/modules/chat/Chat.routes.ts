@@ -6,6 +6,8 @@ const router: express.Router = express.Router();
 
 router.post("/create_chat", auth, ChatController.CreateChat);
 
+router.post("/replicate_chat", auth, ChatController.ReplicateChat);
+
 router.put("/update_name/:id", auth, ChatController.UpdateChatName);
 
 router.get("/get_one_chat/:id", auth, ChatController.GetOneChat);

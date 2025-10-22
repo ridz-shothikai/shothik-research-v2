@@ -5,6 +5,7 @@ import VectorMemoryService from "../../memories/VectorMemoryService.js";
 import { AuthRequest } from "../../middleware/shared/jwt_helper.js";
 import Event from "../events/Events.model.js";
 import ResearchResultSchema from "../research/Research.model.js";
+import Chat from "./Chat.model.js";
 import ChatService from "./Chat.service.js";
 
 export const CreateChat = async (
@@ -21,6 +22,42 @@ export const CreateChat = async (
       const errorMessage = JoiError(e);
       return next(createHttpError.BadRequest(errorMessage));
     }
+    next(e);
+  }
+};
+
+export const ReplicateChat = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = req.id || "";
+    const { chat, replicate_to } = req.body;
+    if (!chat || !replicate_to) {
+      return next(
+        createHttpError.BadRequest("Chat and replicate_to are required")
+      );
+    }
+    const oneChat = await Chat.findOne({ _id: chat, user: user });
+    if (!oneChat) {
+      return next(createHttpError.NotFound("Chat not found"));
+    }
+    const researches = await ResearchResultSchema.find({ chat: chat });
+    const newChat = {
+      name: oneChat?.name || "",
+      user: replicate_to,
+    };
+    const newCreatedChat = await Chat.create(newChat);
+    const newConversations = researches.map(({ _id, ...rest }) => {
+      return {
+        ...rest,
+        chat: newCreatedChat._id,
+      };
+    });
+    await ResearchResultSchema.insertMany(newConversations);
+    res.send(newCreatedChat);
+  } catch (e: any) {
     next(e);
   }
 };
